@@ -27,12 +27,40 @@ cces <- read_rds("cces_initial.rds")
 
 1) What is the age of oldest person who responded to this survey?
 
+```{r}
+max(cces$age)
+```
+
+
 2) What proportion of females voted for Trump? 
+```{r}
+
+number.female <- cces %>%
+  filter(gender == "Female") %>%
+  count()
+
+female.trump <- cces %>%
+  filter(gender == "Female" & trump == 1) %>%
+  count()
+
+female.trump/number.female
+
+```
 
 
 # Scene 2
 
 **Prompt:** Start by creating a logistic model using every variable to try and predict the Trump vote. Consider using `logistic_reg()`, `set_engine()`, and `fit()`. Save the model to an object named `logistic_mod` and the fit to `logistic_fit`. Feel free to refer to the code from last week or to the code in the *Primer*.
+
+```{r}
+
+logistic_mod <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("regression")
+
+logistic_mod %>% fit(trump ~ )
+```
+
 
 1) Print out the model with the confidence interval and interpret the coefficient of `gender`? (Hint: use the divide-by-four rule.) Explain the association of Trump-voting with variables like `income` and `party` to your smart-but-not-mathematical boss. Why doesn't income matter?
 
