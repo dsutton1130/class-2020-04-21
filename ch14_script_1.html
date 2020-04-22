@@ -375,21 +375,99 @@ summary {
 <h1>Scene 1</h1>
 <p><strong>Prompt:</strong> Take a peek at the data and try and figure out what the variables mean. You can find the codebook here: <a href="https://dataverse.harvard.edu/file.xhtml?persistentId=doi:10.7910/DVN/II2DB6/EARRB5&amp;version=4.1" class="uri">https://dataverse.harvard.edu/file.xhtml?persistentId=doi:10.7910/DVN/II2DB6/EARRB5&amp;version=4.1</a></p>
 <ol style="list-style-type: decimal">
-<li><p>What is the age of oldest person who responded to this survey?</p></li>
-<li><p>What proportion of females voted for Trump?</p></li>
+<li>What is the age of oldest person who responded to this survey?</li>
 </ol>
+<pre class="r"><code>max(cces$age)</code></pre>
+<pre><code>## [1] 95</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>What proportion of females voted for Trump?</li>
+</ol>
+<pre class="r"><code>cces %&gt;%
+  filter(gender == &quot;Female&quot;) %&gt;%
+  summarize(prop = sum(trump == 1) / n())</code></pre>
+<pre><code>## # A tibble: 1 x 1
+##    prop
+##   &lt;dbl&gt;
+## 1 0.399</code></pre>
 </div>
 <div id="scene-2" class="section level1">
 <h1>Scene 2</h1>
 <p><strong>Prompt:</strong> Start by creating a logistic model using every variable to try and predict the Trump vote. Consider using <code>logistic_reg()</code>, <code>set_engine()</code>, and <code>fit()</code>. Save the model to an object named <code>logistic_mod</code> and the fit to <code>logistic_fit</code>. Feel free to refer to the code from last week or to the code in the <em>Primer</em>.</p>
+<pre class="r"><code>logistic_mod &lt;- logistic_reg() %&gt;%
+  set_engine(&quot;glm&quot;)
+
+logistic_fit &lt;- fit(logistic_mod, trump ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+logistic_fit$fit %&gt;%
+  tidy(conf.int = TRUE) %&gt;%
+  select(term, estimate, conf.low, conf.high)</code></pre>
+<pre><code>## # A tibble: 14 x 4
+##    term                estimate  conf.low conf.high
+##    &lt;chr&gt;                  &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+##  1 (Intercept)         -6.43    -6.77      -6.10   
+##  2 genderFemale        -0.340   -0.447     -0.233  
+##  3 age                  0.00305 -0.000342   0.00644
+##  4 educ                -0.243   -0.283     -0.203  
+##  5 raceBlack           -1.79    -2.04      -1.55   
+##  6 raceHispanic        -0.763   -0.959     -0.568  
+##  7 raceAsian           -0.591   -0.920     -0.267  
+##  8 raceNative American  0.506    0.00331    1.02   
+##  9 raceMixed           -0.370   -0.701     -0.0454 
+## 10 raceOther            0.451   -0.0151     0.923  
+## 11 raceMiddle Eastern  -1.78    -3.44      -0.323  
+## 12 income              -0.00186 -0.0201     0.0164 
+## 13 party                1.02     0.989      1.06   
+## 14 ideology             1.16     1.09       1.23</code></pre>
 <ol style="list-style-type: decimal">
 <li><p>Print out the model with the confidence interval and interpret the coefficient of <code>gender</code>? (Hint: use the divide-by-four rule.) Explain the association of Trump-voting with variables like <code>income</code> and <code>party</code> to your smart-but-not-mathematical boss. Why doesn’t income matter?</p></li>
 <li><p>What is the expected vote for Dom - who is Male, 37, holds a 4-year degree (placing him in the 5 <code>educ</code> bucket), Asian, makes $77,000, with <code>ideology</code> and <code>party</code> equal to 3. (Hint: use predict().)</p></li>
 </ol>
+<pre class="r"><code>dom &lt;- tibble(gender = &quot;Male&quot;, age = 37, educ = 5, race = &quot;Asian&quot;, income = 8, ideology = 3, party = 3)
+
+predict(logistic_fit, new_data = dom)</code></pre>
+<pre><code>## # A tibble: 1 x 1
+##   .pred_class
+##   &lt;fct&gt;      
+## 1 0</code></pre>
 </div>
 <div id="scene-3" class="section level1">
 <h1>Scene 3</h1>
 <p><strong>Prompt:</strong> Great! Now that you have created a logistic model to predict Trump vote, create two more models: CART (rpart) and randomforest. Set the seed to 1005. For rand_forest, set mtry = 7 to use all our predictors and set trees = 50 so your computer doesn’t take forever to run.</p>
+<pre class="r"><code>set.seed(1005)
+
+tree_mod &lt;- decision_tree() %&gt;%
+  set_engine(&quot;rpart&quot;,
+             model = TRUE) %&gt;%
+  set_mode(&quot;classification&quot;)
+
+trump_vote_tree &lt;- fit(tree_mod,
+                         factor(trump) ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+trump_vote_tree$fit %&gt;%
+  prp(extra = &quot;auto&quot;, varlen = 0, faclen = 0)</code></pre>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABUAAAAPACAMAAADDuCPrAAAAt1BMVEUAAAAAADoAAGYAOjoAOmYAOpAAZrY6AAA6OgA6Ojo6OmY6ZpA6ZrY6kJA6kLY6kNtmAABmOgBmOjpmOmZmZjpmkJBmkLZmkNtmtrZmtttmtv+QOgCQOjqQZjqQZmaQkDqQkLaQtraQttuQtv+Q2/+2ZgC2Zjq2kGa2kJC2tpC229u22/+2/7a2///bkDrbkGbbtmbbtpDb25Db27bb2//b////tmb/25D/27b/29v//7b//9v////mck9BAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nO3dfWMbVXqHYRkCWSBtAt3uNlC67RZDS7omLIsTcL7/56pGrzPSSJZ+kqwzZ67rD0jsWJHmmXNHI42kyQcAIpNrXwGAoRJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAUpyf/vv0y3j4ZjKZfH365cA+Akph3n95jvDdTQSUyxNQyvLT83OE734ioDwBAaUo754fG76f/+VvW1/7/ZWA8hQElKIcGdCHH55PPtoO6O1EQHkKAkpRjgro+2+bTG4HdH4AL6BcnICyYRLquajmSPrmu4cf/jD93xdvll/95ds/NH/+s+VXmruLX7//9+l/P/92dWn/1ByEv5z/gfveSn74+cv5H9361izC+wJ64s2CJfsHXWk/+1IzC+h/LTp383r2tdn5RQvzQDYB/bfZg5Yf/WX9rearn/y6+gOfblz0w/fLSq7LvPxW8zf86557sqfeLFiye9ARF6PvBxfP5SzNena75ysv79a/bO523ny3upRuC99/tfhjH7/+detvbS7k0z0PBRx1ExWUfewdtJ3Qi54fnQe0uev5c9Oz5lh7FrYX0+q9nSzvV94u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AQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoIMHL+sAAAEMSURBVAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgJCAAoQEFCAkoAAhAQUICShASEABQgIKEBJQgND/A4cXS2krU6E9AAAAAElFTkSuQmCC" width="672" /></p>
+<pre class="r"><code>forest_mod &lt;- rand_forest(mtry = 7, trees = 50) %&gt;%
+  set_engine(&quot;randomForest&quot;) %&gt;%
+  set_mode(&quot;classification&quot;)
+
+trump_vote_forest &lt;- fit(forest_mod, trump ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+trump_vote_forest</code></pre>
+<pre><code>## parsnip model object
+## 
+## Fit time:  2s 
+## 
+## Call:
+##  randomForest(x = as.data.frame(x), y = y, ntree = ~50, mtry = ~7) 
+##                Type of random forest: classification
+##                      Number of trees: 50
+## No. of variables tried at each split: 7
+## 
+##         OOB estimate of  error rate: 9.08%
+## Confusion matrix:
+##       0    1 class.error
+## 0 10792  920  0.07855191
+## 1  1006 8499  0.10583903</code></pre>
 <ol style="list-style-type: decimal">
 <li><p>Interpret the output of the CART model (Hint: set extra = “auto” in <code>prp()</code>.) Where would Dom fall in this decision tree?</p></li>
 <li><p>Looking at the randomForest model, what does the OOB error tell us? Interpret the first row, second column of the confusion matrix, what does that 920 represent? How does 920 relate to the class.error of 0.078?</p></li>

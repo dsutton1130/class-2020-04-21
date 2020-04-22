@@ -28,6 +28,7 @@ cces <- read_rds("cces_initial.rds")
 1) What is the age of oldest person who responded to this survey?
 
 ```{r}
+
 max(cces$age)
 ```
 
@@ -35,15 +36,10 @@ max(cces$age)
 2) What proportion of females voted for Trump? 
 ```{r}
 
-number.female <- cces %>%
+cces %>%
   filter(gender == "Female") %>%
-  count()
-
-female.trump <- cces %>%
-  filter(gender == "Female" & trump == 1) %>%
-  count()
-
-female.trump/number.female
+  summarize(prop = sum(trump == 1) / n())
+  
 
 ```
 
@@ -55,10 +51,13 @@ female.trump/number.female
 ```{r}
 
 logistic_mod <- logistic_reg() %>%
-  set_engine("glm") %>%
-  set_mode("regression")
+  set_engine("glm")
 
-logistic_mod %>% fit(trump ~ )
+logistic_fit <- fit(logistic_mod, trump ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+logistic_fit$fit %>%
+  tidy(conf.int = TRUE) %>%
+  select(term, estimate, conf.low, conf.high)
 ```
 
 
@@ -66,11 +65,42 @@ logistic_mod %>% fit(trump ~ )
 
 2) What is the expected vote for Dom - who is Male, 37, holds a 4-year degree (placing him in the 5 `educ` bucket), Asian, makes $77,000, with `ideology` and `party` equal to 3. (Hint: use predict().)
 
+```{r}
+
+dom <- tibble(gender = "Male", age = 37, educ = 5, race = "Asian", income = 8, ideology = 3, party = 3)
+
+predict(logistic_fit, new_data = dom)
+```
 
 
 # Scene 3
 
 **Prompt:** Great! Now that you have created a logistic model to predict Trump vote, create two more models: CART (rpart) and randomforest. Set the seed to 1005. For rand_forest, set mtry = 7 to use all our predictors and set trees = 50 so your computer doesn't take forever to run.
+
+```{r}
+
+set.seed(1005)
+
+tree_mod <- decision_tree() %>%
+  set_engine("rpart",
+             model = TRUE) %>%
+  set_mode("classification")
+
+trump_vote_tree <- fit(tree_mod,
+                         factor(trump) ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+trump_vote_tree$fit %>%
+  prp(extra = "auto", varlen = 0, faclen = 0)
+
+forest_mod <- rand_forest(mtry = 7, trees = 50) %>%
+  set_engine("randomForest") %>%
+  set_mode("classification")
+
+trump_vote_forest <- fit(forest_mod, trump ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+trump_vote_forest
+```
+
 
 1) Interpret the output of the CART model (Hint: set extra = "auto" in `prp()`.) Where would Dom fall in this decision tree? 
 
